@@ -2,14 +2,14 @@ import os
 import cv2
 import image_functions
 from tensorflow.keras.utils import Sequence
-from tensorflow import keras
+from tensorflow.keras.preprocessing import image
 import numpy as np
 
 
 class DataGenerator(Sequence):
-    def __int__(self, posters_list, genre, n_class=5, batch_size=32, dim=(32, 32, 32), n_channel=3, shuffle=True):
+    def __init__(self, posters_list, genre_list, n_class=5, batch_size=32, dim=(32, 32), n_channel=3, shuffle=True):
         self.posters_list = posters_list
-        self.genre = genre
+        self.genre_list = genre_list
         self.batch_size = batch_size
         self.dim = dim
         self.n_channel = n_channel
@@ -22,14 +22,32 @@ class DataGenerator(Sequence):
         if self.shuffle:
             np.random.shuffle(self.indexes)
 
+    def __get_label(self, genre):
+        y = np.zeros((self.n_class), dtype=int)
+        for i in genre:
+            y[i] = 1
+        return y
+
+    def __read_image(self, f):
+        f = "/home/zaher/DataFolder/Movie_Poster_Dataset/images/" + f + ".jpg"
+        img = image.load_img(f, target_size=(self.dim[1], self.dim[0]))
+        img = image.img_to_array(img)
+        img = img / 255
+        rand = np.random.randn()
+        if rand < 0.15:
+            img = image_functions.flip(img, vflip=True)
+        elif 0.30 > rand > 0.15:
+            img = image_functions.flip(img, hflip=True)
+        return img
+
     def __data_generation(self, list_temp):
         X = np.empty((self.batch_size, *self.dim, self.n_channel))
         y = np.empty((self.batch_size, self.n_class))
 
         for i, f in enumerate(list_temp):
-            X[i,] = cv2.imread("/home/zaher/DataFolder/Movie_Poster_Dataset/images/" + f + ".jpg")
-            y[i] = self.genre[f]
-
+            X[i, :] = self.__read_image(f)
+            y[i] = self.__get_label(self.genre_list[i])
+        # print(X.shape,y.shape)
         return X, y
 
     def __len__(self):
